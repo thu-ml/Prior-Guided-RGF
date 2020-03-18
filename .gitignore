@@ -1,2 +1,7 @@
 __pycache__
 *.pyc
+temp.png
+*.ckpt
+images
+output
+.vscode
