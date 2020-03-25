@@ -222,7 +222,7 @@ class Denoiser:
     self.image_size = 299
     self.num_classes = 1000
     self.predictions_is_correct = False
-    self.use_larger_step_size = True
+    self.use_larger_step_size = False
     self.use_smoothed_grad = True
 
     # For dataprior attacks. gamma = A^2 * D / d in the paper
@@ -265,6 +265,18 @@ class Denoiser:
     resmodel.eval()
     incepv3model.eval()
 
+  def forward(self, input):
+    images = input.permute(0, 3, 1, 2)
+    input_tf = (images - self.mean_tf) / self.std_tf
+    input_torch = (images - self.mean_torch) / self.std_torch
+
+    logits1 = self.net1(input_torch,True)[-1]
+    logits2 = self.net2(input_tf,True)[-1]
+    logits3 = self.net3(input_tf,True)[-1]
+
+    logits = (logits1 + logits2 + logits3) / 3
+    return logits
+
   def get_loss(self, images, labels):
     if len(images.shape) == 3:
       images = images[np.newaxis]
@@ -276,18 +288,10 @@ class Denoiser:
       return np.concatenate([loss1, loss2], axis=0)
 
     with torch.no_grad():
-      images = np.transpose(images, [0, 3, 1, 2])
       images = torch.tensor(images, dtype=torch.float)
       images = images.cuda()
-      input_var = images #autograd.Variable(images, volatile=True)
-      input_tf = (input_var - self.mean_tf) / self.std_tf
-      input_torch = (input_var - self.mean_torch) / self.std_torch
-    
-      logits1 = self.net1(input_torch,True)[-1]
-      logits2 = self.net2(input_tf,True)[-1]
-      logits3 = self.net3(input_tf,True)[-1]
+      logits = self.forward(images)
 
-      logits = (logits1 + logits2 + logits3) / 3
       one_hot = torch.zeros([labels.shape[0], 1000])
       for i in range(labels.shape[0]):
         one_hot[i, labels[i]] = 1
@@ -295,23 +299,37 @@ class Denoiser:
       loss = torch.sum(- one_hot * F.log_softmax(logits, -1), -1)
     return loss.data.cpu().numpy()
 
+  def get_grad(self, images, labels):
+    if len(images.shape) == 3:
+      images = images[np.newaxis]
+    
+    # to save GPU memory usage
+    if images.shape[0] > 25:
+      grad1 = self.get_grad(images[:25], labels[:25])
+      grad2 = self.get_grad(images[25:], labels[25:])
+      return np.concatenate([grad1, grad2], axis=0)
+
+    images = torch.tensor(images, dtype=torch.float)
+    images = images.cuda()
+    images.requires_grad_()
+    one_hot = torch.zeros([labels.shape[0], 1000])
+    for i in range(labels.shape[0]):
+      one_hot[i, labels[i]] = 1
+    one_hot = one_hot.cuda()
+    logits = self.forward(images)
+    loss = torch.sum(-one_hot * F.log_softmax(logits, -1))
+    loss.backward()
+    grad = images.grad
+    return grad.detach().cpu().numpy()
+
   def get_pred(self, images):
     if len(images.shape) == 3:
       images = images[np.newaxis]
 
     with torch.no_grad():
-      images = np.transpose(images, [0, 3, 1, 2])
       images = torch.tensor(images, dtype=torch.float)
       images = images.cuda()
-      input_var = images
-      input_tf = (input_var - self.mean_tf) / self.std_tf
-      input_torch = (input_var - self.mean_torch) / self.std_torch
-    
-      logits1 = self.net1(input_torch,True)[-1]
-      logits2 = self.net2(input_tf,True)[-1]
-      logits3 = self.net3(input_tf,True)[-1]
-
-      logits = (logits1 + logits2 + logits3) / 3
+      logits = self.forward(images)
 
     return logits.max(1)[1].data.cpu().numpy()
 
