@@ -67,7 +67,7 @@ def main(_):
 
   config = tf.ConfigProto()
   if FLAGS.model == 'denoiser':
-    config.gpu_options.per_process_gpu_memory_fraction = 0.3
+    config.gpu_options.per_process_gpu_memory_fraction = 0.2
   else:
     config.gpu_options.allow_growth = True
 
@@ -183,7 +183,7 @@ def main(_):
           print("alpha =", alpha)
         prior = prior / np.maximum(1e-12, np.sqrt(np.mean(np.square(prior))))
 
-      if FLAGS.method == 'biased' or FLAGS.method == 'average':
+      if FLAGS.method in ['biased', 'average']:
         start_iter = 3
         if ite % 10 == 0 or ite == start_iter:
           # Estimate norm of true gradient
@@ -258,7 +258,7 @@ def main(_):
         else:
           pert = np.random.normal(size=(q,) + adv_image.shape)
         for i in range(q):
-          if FLAGS.method == 'biased' or FLAGS.method == 'fixed_biased':
+          if FLAGS.method in ['biased', 'fixed_biased']:
             pert[i] = pert[i] - np.sum(pert[i] * prior) * prior / np.maximum(1e-12,
               np.sum(prior * prior))
             pert[i] = pert[i] / np.maximum(1e-12, np.sqrt(np.mean(np.square(pert[i]))))
@@ -297,6 +297,9 @@ def main(_):
           final = final / np.maximum(1e-12, np.sqrt(np.mean(np.square(final))))
           print("diff_prior = {}, diff_nes = {}".format(diff_prior, diff_nes))
         elif FLAGS.method == 'fixed_average':
+          diff_prior = (model.get_loss(adv_image + sigma * prior, label) - l)[0]
+          if diff_prior < 0:
+            prior = -prior
           final = 0.5 * prior + 0.5 * grad
           final = final / np.maximum(1e-12, np.sqrt(np.mean(np.square(final))))
         else:
@@ -310,7 +313,7 @@ def main(_):
           print("losses", les)
 
         if FLAGS.show_loss:
-          if FLAGS.method == 'average' or FLAGS.method == 'fixed_average':
+          if FLAGS.method in ['average', 'fixed_average']:
             lprior = model.get_loss(adv_image + lr * prior, label) - l
             print_loss(model, prior)
             lgrad = model.get_loss(adv_image + lr * grad, label) - l
@@ -318,27 +321,27 @@ def main(_):
             lfinal = model.get_loss(adv_image + lr * final, label) - l
             print_loss(model, final)
             print(lprior, lgrad, lfinal)
-          elif FLAGS.method == 'biased' or FLAGS.method == 'fixed_biased':
+          elif FLAGS.method in ['biased', 'fixed_biased']:
             lprior = model.get_loss(adv_image + lr * prior, label) - l
             print_loss(model, prior)
             lgrad = model.get_loss(adv_image + lr * grad, label) - l
             print_loss(model, grad)
-            print(lprior, lgrad)
-        
-        grad = final
+            print(lprior, lgrad)        
       else:
-        grad = prior
+        final = prior
 
       if FLAGS.show_true and hasattr(model, 'get_grad'):
-        print("angle =", np.sum(true*grad) / np.maximum(1e-12, np.sqrt(np.sum(true*true) * np.sum(grad*grad))))
+        if FLAGS.method in ['average', 'fixed_average'] and not return_prior:
+          print("NES angle =", np.sum(true*grad) / np.maximum(1e-12, np.sqrt(np.sum(true*true) * np.sum(grad*grad))))
+        print("angle =", np.sum(true*final) / np.maximum(1e-12, np.sqrt(np.sum(true*true) * np.sum(final*final))))
 
       if FLAGS.norm == 'l2':
-        adv_image = adv_image + lr * grad / np.maximum(1e-12, np.sqrt(np.mean(np.square(grad))))
+        adv_image = adv_image + lr * final / np.maximum(1e-12, np.sqrt(np.mean(np.square(final))))
         norm = max(1e-12, np.linalg.norm(adv_image - image))
         factor = min(1, eps / norm)
         adv_image = image + (adv_image - image) * factor
       else:
-        adv_image = adv_image + lr * np.sign(grad)
+        adv_image = adv_image + lr * np.sign(final)
         adv_image = np.clip(adv_image, image - eps, image + eps)
       adv_image = np.clip(adv_image, 0, 1)
 
