@@ -25,6 +25,10 @@ tf.flags.DEFINE_enum(
                        'fixed_biased', 'fixed_average'],
   'Methods used in the attack.')
 
+tf.flags.DEFINE_float(
+  'fixed_const', 0.5, 'Value of lambda used in fixed_biased,'
+                      ' or value of mu used in fixed_average')
+
 tf.flags.DEFINE_boolean(
   'dataprior', False, 'Whether to use data prior in the attack.')
 
@@ -63,6 +67,7 @@ def load_images(input_dir, image_size):
 
 
 def main(_):
+  print("FLAGS values:", tf.app.flags.FLAGS.flag_values_dict())
   tf.logging.set_verbosity(tf.logging.INFO)
 
   config = tf.ConfigProto()
@@ -248,7 +253,7 @@ def main(_):
         if lmda == 1:
           return_prior = True
       elif FLAGS.method == 'fixed_biased':
-        lmda = 0.5
+        lmda = FLAGS.fixed_const
 
       if not return_prior:
         if FLAGS.dataprior:
@@ -298,9 +303,10 @@ def main(_):
           print("diff_prior = {}, diff_nes = {}".format(diff_prior, diff_nes))
         elif FLAGS.method == 'fixed_average':
           diff_prior = (model.get_loss(adv_image + sigma * prior, label) - l)[0]
+          total_q += 1
           if diff_prior < 0:
             prior = -prior
-          final = 0.5 * prior + 0.5 * grad
+          final = FLAGS.fixed_const * prior + (1 - FLAGS.fixed_const) * grad
           final = final / np.maximum(1e-12, np.sqrt(np.mean(np.square(final))))
         else:
           final = grad
