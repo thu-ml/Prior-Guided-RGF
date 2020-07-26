@@ -23,7 +23,7 @@ We provide 6 target models included in the experiment section of the paper, in w
 
 Note that before running the command above, the user needs to download:
 1. Model checkpoints. We use the ResNet-152 model as the surrogate model, so please download the model checkpoint from http://ml.cs.tsinghua.edu.cn/~shuyu/p-rgf/checkpoints/resnet_v2_152.ckpt. Then please download checkpoints of the target models you want to attack specified above. The downloaded checkpoints should be put under this folder.
-2. The 1,000 images for evaluation from the validation set of ImageNet, which is available at http://ml.cs.tsinghua.edu.cn/~shuyu/p-rgf/images.zip. Then the user needs to unzip the downloaded files, and put the `images` folder under this folder such that the image files are directly under `image` folder (i.e., an image file should be at `./images/ILSVRC2012_val_00000019.png` instead of `./images/images/ILSVRC2012_val_00000019.png`).
+2. The 1,000 images for evaluation from the validation set of ImageNet, which is available at http://ml.cs.tsinghua.edu.cn/~shuyu/p-rgf/images.zip. Then the user needs to unzip the downloaded files, and put the `images` folder under this folder such that the image files are directly under `images` folder (i.e., an image file should be at `./images/ILSVRC2012_val_00000019.png` instead of `./images/images/ILSVRC2012_val_00000019.png`).
 
 ## Requirements
 
