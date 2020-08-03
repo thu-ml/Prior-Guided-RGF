@@ -162,7 +162,7 @@ def main(_):
         print("Grad norm", np.sqrt(np.sum(true*true)))
 
       if ite % 2 == 0 and sigma != ini_sigma:
-        print("checking if sigma could be set to be 1e-4")
+        print("sigma has been increased before; checking if sigma could be set back to ini_sigma")
         rand = np.random.normal(size=adv_image.shape)
         rand = rand / np.maximum(1e-12, np.sqrt(np.mean(np.square(rand))))
         rand_loss = model.get_loss(adv_image + ini_sigma * rand, label)
@@ -172,7 +172,7 @@ def main(_):
         rand_loss2 = model.get_loss(adv_image + ini_sigma * rand, label)
         total_q += 1
         if (rand_loss - l)[0] != 0 and (rand_loss2 - l)[0] != 0:
-          print("set sigma back to 1e-4")
+          print("set sigma back to ini_sigma")
           sigma = ini_sigma
 
       if FLAGS.method != 'uniform':
@@ -191,7 +191,9 @@ def main(_):
       if FLAGS.method in ['biased', 'average']:
         start_iter = 3
         if ite % 10 == 0 or ite == start_iter:
-          # Estimate norm of true gradient
+          # Estimate norm of true gradient periodically when ite == 0/10/20...;
+          # since gradient norm may change fast in the early iterations, we also
+          # estimate the gradient norm when ite == 3.
           s = 10
           pert = np.random.normal(size=(s,) + adv_image.shape)
           for i in range(s):
@@ -206,6 +208,7 @@ def main(_):
           total_q += 1
           diff_prior = (prior_loss - l)[0]
           if diff_prior == 0:
+            # Avoid the numerical issue in finite difference
             sigma *= 2
             print("multiply sigma by 2")
           else:
@@ -280,6 +283,7 @@ def main(_):
           grad = np.mean(grad, axis=0)
           norm_grad = np.sqrt(np.mean(np.square(grad)))
           if norm_grad == 0:
+            # Avoid the numerical issue in finite difference
             sigma *= 5
             print("estimated grad == 0, multiply sigma by 5")
           else:
