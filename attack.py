@@ -230,9 +230,9 @@ def main(_):
       return_prior = False
       if FLAGS.method == 'average':
         if FLAGS.dataprior:
-          alpha_nes = np.sqrt(A_square * q / (d + q + 1))
+          alpha_nes = np.sqrt(A_square * q / (d + q - 1))
         else:
-          alpha_nes = np.sqrt(q / (n + q + 1))
+          alpha_nes = np.sqrt(q / (n + q - 1))
         if alpha >= 1.414 * alpha_nes:
           return_prior = True
       elif FLAGS.method == 'biased':
