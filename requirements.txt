@@ -2,5 +2,5 @@ opencv-python==4.1.0.25
 numpy==1.14.3
 scipy==1.1.0
 Pillow # For JPEG model
-tensorflow-gpu==1.13.1
+tensorflow-gpu==2.5.3
 torch==0.4.1 # For Denoiser model
