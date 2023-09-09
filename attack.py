@@ -236,22 +236,28 @@ def main(_):
         if alpha >= 1.414 * alpha_nes:
           return_prior = True
       elif FLAGS.method == 'biased':
+        # The following lines were updated to its current form on 2023-9-9
+        # to fix a bug in the calculation of lmda in the code
+        # when FLAGS.method == 'biased' and FLAGS.dataprior is True.
+        # See https://github.com/thu-ml/Prior-Guided-RGF/pull/17 for details.
+        # ===== Begin of the update =====
         if FLAGS.dataprior:
-          best_lambda = A_square * (A_square - alpha ** 2 * (d + 2 * q - 2)) / (
+          if alpha ** 2 <= A_square / (d + 2 * q - 2):
+            lmda = 0
+          elif alpha ** 2 >= A_square * (2 * q - 1) / d:
+            lmda = 1
+          else:
+            lmda = A_square * (A_square - alpha ** 2 * (d + 2 * q - 2)) / (
                   A_square ** 2 + alpha ** 4 * d ** 2 - 2 * A_square * alpha ** 2 * (q + d * q - 1))
         else:
-          best_lambda = (1 - alpha ** 2) * (1 - alpha ** 2 * (n + 2 * q - 2)) / (
-                  alpha ** 4 * n * (n + 2 * q - 2) - 2 * alpha ** 2 * n * q + 1)
-        print('best_lambda = ', best_lambda)
-        if best_lambda < 1 and best_lambda > 0:
-          lmda = best_lambda
-        else:
-          if alpha ** 2 * (n + 2 * q - 2) < 1:
+          if alpha ** 2 <= 1 / (n + 2 * q - 2):
             lmda = 0
-          else:
+          elif alpha ** 2 >= (2 * q - 1) / (n + 2 * q - 2):
             lmda = 1
-        if np.abs(alpha) >= 1:
-          lmda = 1
+          else:
+            lmda = (1 - alpha ** 2) * (1 - alpha ** 2 * (n + 2 * q - 2)) / (
+                  alpha ** 4 * n * (n + 2 * q - 2) - 2 * alpha ** 2 * n * q + 1)
+        # ===== End of the update =====
         print('lambda = ', lmda)
         if lmda == 1:
           return_prior = True
